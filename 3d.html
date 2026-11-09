@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>皮克敏 3D 五子棋 - Pikmin Gomoku 3D</title>
+    <!-- Web App Manifest for Android PWA -->
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIuabor克敏 3EQ 五子棋IiwKICAic2hvcnRfbmFtZSI6ICLnrKjkuYtfM0QiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzFiMmUxNSIsCiAgInRoZW1lX2NvbG9yIjogIiM3Y2IzNDIiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL3BsYWNlaG9sZC5jby8xOTJ4MTkyLzcAYjM0Mi9mZmZmZmY/dGV4dD1QaWttaW4rM0QiLAogICAgICAic2l6ZXMiOiAiMTkyeDE5MiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIKICAgIH0KICBdCn0=">
+    <meta name="theme-color" content="#7cb342">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js (3D 引擎) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls (3D 鏡頭控制) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Tone.js (音效生成) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- JSZip (打包 ZIP 檔案) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Font Awesome 圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Fredoka', 'Noto Sans TC', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            background: #1b2e15;
+            overflow: hidden;
+        }
+
+        /* 自訂可愛木紋/草地 UI 風格 */
+        .pikmin-card {
+            background: rgba(255, 253, 245, 0.92);
+            backdrop-filter: blur(12px);
+            border: 4px solid #7cb342;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), inset 0 0 15px rgba(124, 179, 66, 0.2);
+        }
+
+        .pikmin-btn {
+            background: linear-gradient(135deg, #8bc34a 0%, #689f38 100%);
+            box-shadow: 0 4px 0 #33691e, 0 6px 10px rgba(0,0,0,0.2);
+            transition: all 0.15s ease;
+        }
+
+        .pikmin-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 #33691e, 0 8px 12px rgba(0,0,0,0.25);
+            background: linear-gradient(135deg, #9ccc65 0%, #7cb342 100%);
+        }
+
+        .pikmin-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #33691e, 0 3px 6px rgba(0,0,0,0.2);
+        }
+
+        .pikmin-btn-red {
+            background: linear-gradient(135deg, #ef5350 0%, #d32f2f 100%);
+            box-shadow: 0 4px 0 #b71c1c, 0 6px 10px rgba(0,0,0,0.2);
+        }
+        .pikmin-btn-red:hover {
+            background: linear-gradient(135deg, #e57373 0%, #ef5350 100%);
+            box-shadow: 0 6px 0 #b71c1c;
+        }
+
+        .pikmin-btn-yellow {
+            background: linear-gradient(135deg, #ffee58 0%, #fbc02d 100%);
+            color: #5d4037;
+            box-shadow: 0 4px 0 #f57f17, 0 6px 10px rgba(0,0,0,0.2);
+        }
+        .pikmin-btn-yellow:hover {
+            background: linear-gradient(135deg, #fff176 0%, #fdd835 100%);
+            box-shadow: 0 6px 0 #f57f17;
+        }
+
+        .pikmin-btn-blue {
+            background: linear-gradient(135deg, #42a5f5 0%, #1976d2 100%);
+            box-shadow: 0 4px 0 #0d47a1, 0 6px 10px rgba(0,0,0,0.2);
+        }
+
+        /* 浮動花葉動畫 */
+        @keyframes floatLeaf {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(5deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+        .leaf-float {
+            animation: floatLeaf 3s ease-in-out infinite;
+        }
+
+        /* Modal 動畫 */
+        @keyframes popIn {
+            0% { transform: scale(0.7); opacity: 0; }
+            80% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        canvas {
+            outline: none;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-between items-center relative select-none">
+
+    <!-- 3D Canvas 容器 -->
+    <div id="canvas-container" class="absolute inset-0 w-full h-full z-0 cursor-grab active:cursor-grabbing"></div>
+
+    <!-- UI Overlay Header -->
+    <header class="relative z-10 w-full max-w-4xl px-4 pt-3 flex justify-between items-center pointer-events-none">
+        <!-- 標題與花朵徽章 -->
+        <div class="pikmin-card rounded-3xl px-4 py-2 flex items-center space-x-3 pointer-events-auto shadow-lg">
+            <div class="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-white text-xl font-bold shadow-md relative leaf-float">
+                🌱
+                <!-- 皮克敏紅葉標誌 -->
+                <span class="absolute -top-2 -right-1 text-xs">🌸</span>
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-black text-green-900 tracking-wide flex items-center gap-1">
+                    皮克敏 3D 五子棋
+                </h1>
+                <p class="text-xs font-bold text-green-700">Pikmin Flower Garden Gomoku</p>
+            </div>
+        </div>
+
+        <!-- 比分與回合指示 -->
+        <div class="pikmin-card rounded-3xl px-4 py-2 flex items-center space-x-4 pointer-events-auto shadow-lg">
+            <!-- 玩家 1 (紅花皮克敏果實) -->
+            <div id="player1-card" class="flex items-center space-x-2 px-3 py-1 rounded-2xl transition-all duration-300 bg-red-100 border-2 border-red-400">
+                <div class="w-6 h-6 rounded-full bg-red-500 border-2 border-white shadow flex items-center justify-center text-xs text-white font-bold">黑</div>
+                <div class="text-left">
+                    <span class="block text-xs font-bold text-red-900">玩家 (紅)</span>
+                    <span id="p1-score" class="text-xs font-black text-red-600">勝利: 0</span>
+                </div>
+            </div>
+
+            <div class="text-lg font-black text-green-800">VS</div>
+
+            <!-- 玩家 2 / AI (藍花皮克敏果實) -->
+            <div id="player2-card" class="flex items-center space-x-2 px-3 py-1 rounded-2xl transition-all duration-300 opacity-60">
+                <div class="w-6 h-6 rounded-full bg-blue-500 border-2 border-white shadow flex items-center justify-center text-xs text-white font-bold">白</div>
+                <div class="text-left">
+                    <span id="p2-name" class="block text-xs font-bold text-blue-900">AI (藍)</span>
+                    <span id="p2-score" class="text-xs font-black text-blue-600">勝利: 0</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 中間提示語/回合指示器 -->
+    <div class="relative z-10 my-2 pointer-events-none">
+        <div id="turn-banner" class="pikmin-card rounded-full px-6 py-2 text-sm md:text-base font-black text-green-900 shadow-xl border-4 border-yellow-400 flex items-center gap-2 pointer-events-auto">
+            <span id="turn-icon" class="text-lg animate-bounce">🍎</span>
+            <span id="turn-text">輪到玩家落子 (紅果實)</span>
+        </div>
+    </div>
+
+    <!-- 底部控制按鈕區 -->
+    <footer class="relative z-10 w-full max-w-2xl px-4 pb-4 flex justify-center items-center gap-2 md:gap-4 pointer-events-none">
+        <button id="btn-undo" class="pikmin-btn pikmin-btn-yellow pointer-events-auto rounded-2xl px-4 py-2.5 text-xs md:text-sm font-bold text-amber-900 flex items-center gap-1.5">
+            <i class="fa-solid fa-rotate-left"></i> 悔棋
+        </button>
+
+        <button id="btn-reset" class="pikmin-btn pointer-events-auto rounded-2xl px-5 py-2.5 text-xs md:text-sm font-bold text-white flex items-center gap-1.5">
+            <i class="fa-solid fa-arrows-rotate"></i> 重新開局
+        </button>
+
+        <button id="btn-mode" class="pikmin-btn pikmin-btn-blue pointer-events-auto rounded-2xl px-4 py-2.5 text-xs md:text-sm font-bold text-white flex items-center gap-1.5">
+            <i class="fa-solid fa-robot"></i> <span id="mode-text">模式: AI 困難</span>
+        </button>
+
+        <button id="btn-camera" class="pikmin-btn pointer-events-auto rounded-2xl px-3 py-2.5 text-xs md:text-sm font-bold text-white flex items-center gap-1" title="重置鏡頭">
+            <i class="fa-solid fa-video"></i>
+        </button>
+
+        <button id="btn-sound" class="pikmin-btn pointer-events-auto rounded-2xl px-3 py-2.5 text-xs md:text-sm font-bold text-white flex items-center gap-1" title="開關音效">
+            <i id="sound-icon" class="fa-solid fa-volume-high"></i>
+        </button>
+
+        <button id="btn-download-menu" class="pikmin-btn pikmin-btn-red pointer-events-auto rounded-2xl px-4 py-2.5 text-xs md:text-sm font-bold text-white flex items-center gap-1.5" title="下載檔案與 APP">
+            <i class="fa-solid fa-download"></i> 下載
+        </button>
+    </footer>
+
+    <!-- 下載選單 Modal -->
+    <div id="download-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden pointer-events-auto">
+        <div class="pikmin-card rounded-3xl p-6 md:p-8 max-w-md w-full text-center relative border-8 border-green-400 animate-pop">
+            <button id="modal-download-close" class="absolute top-3 right-4 text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
+            <div class="text-4xl mb-2">📦</div>
+            <h2 class="text-2xl font-black text-green-900 mb-2">下載與離線安裝</h2>
+            <p class="text-xs font-bold text-green-700 mb-6">您可以下載原始檔或安裝至 Android 手機 / 電腦 App 離線遊玩！</p>
+            
+            <div class="flex flex-col gap-3">
+                <button id="btn-dl-html" class="pikmin-btn text-white font-bold py-3 px-4 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-md">
+                    <i class="fa-solid fa-file-code text-lg"></i> 下載獨立 HTML 檔案 (.html)
+                </button>
+                <button id="btn-dl-zip" class="pikmin-btn pikmin-btn-yellow text-amber-900 font-bold py-3 px-4 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-md">
+                    <i class="fa-solid fa-file-zipper text-lg"></i> 一鍵打包 ZIP 離線包 (.zip)
+                </button>
+                <button id="btn-dl-app-info" class="pikmin-btn pikmin-btn-blue text-white font-bold py-3 px-4 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-md">
+                    <i class="fa-brands fa-android text-lg"></i> 安裝至 Android 手機 APP (PWA)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Android / iOS PWA 安裝說明 Modal -->
+    <div id="pwa-info-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden pointer-events-auto">
+        <div class="pikmin-card rounded-3xl p-6 md:p-8 max-w-md w-full text-left relative border-8 border-blue-400 animate-pop">
+            <button id="modal-pwa-close" class="absolute top-3 right-4 text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
+            <div class="text-3xl text-center mb-1">📱</div>
+            <h2 class="text-xl font-black text-center text-blue-900 mb-4">Android 手機 APP 安裝步驟</h2>
+            
+            <div class="space-y-3 text-xs md:text-sm font-bold text-gray-800 bg-white/70 p-4 rounded-2xl border border-blue-200">
+                <p class="flex items-start gap-2">
+                    <span class="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">1</span>
+                    <span>用 <b>Android Chrome 瀏覽器</b> 打開此網頁或下載的 HTML 檔。</span>
+                </p>
+                <p class="flex items-start gap-2">
+                    <span class="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">2</span>
+                    <span>點擊右上方選單 <b>「⋮」</b> (三個點)。</span>
+                </p>
+                <p class="flex items-start gap-2">
+                    <span class="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">3</span>
+                    <span>選擇 <b>「安裝應用程式」</b> 或 <b>「新增至主畫面」</b>。</span>
+                </p>
+                <p class="flex items-start gap-2">
+                    <span class="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">4</span>
+                    <span>確認後，手機桌面上就會生成一個獨立的「皮克敏五子棋」APP 圖示！</span>
+                </p>
+            </div>
+
+            <button id="btn-trigger-pwa" class="w-full mt-4 pikmin-btn text-white font-bold py-2.5 rounded-2xl text-sm flex items-center justify-center gap-2 hidden">
+                <i class="fa-solid fa-download"></i> 點此直接觸發 Android 安裝
+            </button>
+        </div>
+    </div>
+
+    <!-- 勝負結算 Modal -->
+    <div id="win-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden pointer-events-auto">
+        <div class="pikmin-card rounded-3xl p-6 md:p-8 max-w-sm w-full text-center relative border-8 border-yellow-300 animate-pop">
+            <div id="modal-flower" class="text-6xl mb-2 leaf-float">🌸</div>
+            <h2 id="win-title" class="text-2xl md:text-3xl font-black text-green-900 mb-2">玩家獲勝！</h2>
+            <p id="win-subtitle" class="text-sm font-bold text-green-700 mb-6">皮克敏們為你的智慧歡呼！</p>
+            
+            <div class="flex flex-col gap-3">
+                <button id="modal-btn-restart" class="pikmin-btn text-white font-bold py-3 px-6 rounded-2xl text-base shadow-lg">
+                    🌱 再玩一局
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 遊戲主邏輯腳本 -->
+    <script>
+        /**
+         * 遊戲設定與狀態變數
+         */
+        const BOARD_SIZE = 15; // 15x15 棋盤
+        const CELL_SIZE = 1.6; // 3D 單位每個網格大小
+        const BOARD_WIDTH = (BOARD_SIZE - 1) * CELL_SIZE;
+
+        // 狀態: 0=空, 1=黑棋(玩家/紅果實), 2=白棋(AI/藍果實)
+        let boardState = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(0));
+        let moveHistory = []; // {row, col, player, mesh}
+        let currentPlayer = 1; // 1: 玩家(黑/紅), 2: AI/玩家2(白/藍)
+        let isGameOver = false;
+        let isAiProcessing = false;
+        
+        // 模式: 'ai-easy', 'ai-hard', 'pvp'
+        let gameMode = 'ai-hard';
+        let p1Wins = 0;
+        let p2Wins = 0;
+        let soundEnabled = true;
+
+        // 音效控制 (Tone.js)
+        let synth, winSynth;
+        function initAudio() {
+            try {
+                synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+                }).toDestination();
+                synth.volume.value = -6;
+
+                winSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "sine" }
+                }).toDestination();
+            } catch (e) {
+                console.log("Audio API Error", e);
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                if (type === 'place1') {
+                    synth.triggerAttackRelease(["C5", "E5"], "16n");
+                } else if (type === 'place2') {
+                    synth.triggerAttackRelease(["G4", "B4"], "16n");
+                } else if (type === 'win') {
+                    winSynth.triggerAttackRelease(["C5", "E5", "G5", "C6"], "8n");
+                } else if (type === 'click') {
+                    synth.triggerAttackRelease("A5", "32n");
+                }
+            } catch(e){}
+        }
+
+        /**
+         * Three.js 3D 視景設定
+         */
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+
+        // 風格化自然天色背景
+        scene.background = new THREE.Color(0x9bd871);
+        scene.fog = new THREE.FogExp2(0x9bd871, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+        container.appendChild(renderer.domElement);
+
+        // 鏡頭控制 OrbitControls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2.15; // 不低於地面
+        controls.minDistance = 12;
+        controls.maxDistance = 45;
+
+        function setInitialCamera() {
+            camera.position.set(0, 24, 22);
+            controls.target.set(0, 0, 0);
+            controls.update();
+        }
+        setInitialCamera();
+
+        /**
+         * 3D 光影建立
+         */
+        // 環境光 (暖黃自然光)
+        const ambientLight = new THREE.AmbientLight(0xfffaed, 0.7);
+        scene.add(ambientLight);
+
+        // 主太陽光 (帶動態陰影)
+        const dirLight = new THREE.DirectionalLight(0xfff5dd, 1.2);
+        dirLight.position.set(15, 30, 15);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 80;
+        const d = 20;
+        dirLight.shadow.camera.left = -d;
+        dirLight.shadow.camera.right = d;
+        dirLight.shadow.camera.top = d;
+        dirLight.shadow.camera.bottom = -d;
+        dirLight.shadow.bias = -0.0005;
+        scene.add(dirLight);
+
+        // 藍綠補光
+        const fillLight = new THREE.DirectionalLight(0x81d4fa, 0.4);
+        fillLight.position.set(-15, 10, -15);
+        scene.add(fillLight);
+
+        /**
+         * 皮克敏風格 3D 物件生成 (草地底座 + 樹木/花朵/棋盤)
+         */
+        let boardGridMeshes = []; // 用於 Raycasting 點擊測量的網格物件
+        let stonesGroup = new THREE.Group();
+        scene.add(stonesGroup);
+
+        function createEnvironment() {
+            // 1. 草地地表 (大底座)
+            const groundGeo = new THREE.CylinderGeometry(24, 26, 4, 32);
+            const groundMat = new THREE.MeshStandardMaterial({
+                color: 0x4caf50,
+                roughness: 0.8,
+                metalness: 0.1
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.position.y = -2.1;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // 泥土層邊緣
+            const dirtGeo = new THREE.CylinderGeometry(26, 27, 2, 32);
+            const dirtMat = new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.9 });
+            const dirt = new THREE.Mesh(dirtGeo, dirtMat);
+            dirt.position.y = -4.5;
+            scene.add(dirt);
+
+            // 2. 木質皮克敏棋盤底座
+            const boardBoxGeo = new THREE.BoxGeometry(BOARD_WIDTH + 2.5, 1.2, BOARD_WIDTH + 2.5);
+            const boardBoxMat = new THREE.MeshStandardMaterial({
+                color: 0x8d6e63, // 溫暖木色
+                roughness: 0.4,
+                metalness: 0.05
+            });
+            const boardBase = new THREE.Mesh(boardBoxGeo, boardBoxMat);
+            boardBase.position.y = -0.6;
+            boardBase.castShadow = true;
+            boardBase.receiveShadow = true;
+            scene.add(boardBase);
+
+            // 棋盤頂面 (淡黃淺木色)
+            const topGeo = new THREE.BoxGeometry(BOARD_WIDTH + 2.0, 0.1, BOARD_WIDTH + 2.0);
+            const topMat = new THREE.MeshStandardMaterial({
+                color: 0xffecb3,
+                roughness: 0.3,
+                metalness: 0.0
+            });
+            const topBoard = new THREE.Mesh(topGeo, topMat);
+            topBoard.position.y = 0.01;
+            topBoard.receiveShadow = true;
+            scene.add(topBoard);
+
+            // 3. 繪製 15x15 黑色格線與天元星點
+            const gridGroup = new THREE.Group();
+            const lineMat = new THREE.LineBasicMaterial({ color: 0x4e342e, linewidth: 2 });
+
+            const halfWidth = BOARD_WIDTH / 2;
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                const pos = -halfWidth + i * CELL_SIZE;
+
+                // 橫線
+                const hGeo = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(-halfWidth, 0.07, pos),
+                    new THREE.Vector3(halfWidth, 0.07, pos)
+                ]);
+                gridGroup.add(new THREE.Line(hGeo, lineMat));
+
+                // 直線
+                const vGeo = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(pos, 0.07, -halfWidth),
+                    new THREE.Vector3(pos, 0.07, halfWidth)
+                ]);
+                gridGroup.add(new THREE.Line(vGeo, lineMat));
+            }
+            scene.add(gridGroup);
+
+            // 星點 (天元與四角 9 個黑色小圓點)
+            const starPositions = [3, 7, 11];
+            const starGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.08, 16);
+            const starMat = new THREE.MeshStandardMaterial({ color: 0x3e2723, roughness: 0.5 });
+            starPositions.forEach(r => {
+                starPositions.forEach(c => {
+                    const star = new THREE.Mesh(starGeo, starMat);
+                    star.position.set(-halfWidth + c * CELL_SIZE, 0.06, -halfWidth + r * CELL_SIZE);
+                    scene.add(star);
+                });
+            });
+
+            // 4. 生成隱形 Raycast 碰撞區域 (用於準確捕捉 15x15 交叉點)
+            const hitGeo = new THREE.PlaneGeometry(CELL_SIZE, CELL_SIZE);
+            const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+                    hitMesh.rotation.x = -Math.PI / 2;
+                    hitMesh.position.set(-halfWidth + c * CELL_SIZE, 0.08, -halfWidth + r * CELL_SIZE);
+                    hitMesh.userData = { row: r, col: c };
+                    scene.add(hitMesh);
+                    boardGridMeshes.push(hitMesh);
+                }
+            }
+
+            // 5. 邊緣裝飾：皮克敏草叢與小花朵
+            createDecorations();
+        }
+
+        // 周圍可愛花朵草叢裝飾
+        function createDecorations() {
+            const flowerColors = [0xff5252, 0xffeb3b, 0x448aff, 0xff4081];
+            const flowerGeo = new THREE.SphereGeometry(0.35, 8, 8);
+            const leafGeo = new THREE.ConeGeometry(0.3, 0.8, 5);
+            const leafMat = new THREE.MeshStandardMaterial({ color: 0x7cb342, roughness: 0.6 });
+
+            for (let i = 0; i < 24; i++) {
+                const angle = (i / 24) * Math.PI * 2;
+                const radius = 13.5 + Math.random() * 2;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+
+                // 樹葉
+                const leaf = new THREE.Mesh(leafGeo, leafMat);
+                leaf.position.set(x, -0.2, z);
+                leaf.rotation.x = (Math.random() - 0.5) * 0.5;
+                leaf.rotation.z = (Math.random() - 0.5) * 0.5;
+                scene.add(leaf);
+
+                // 花朵
+                if (i % 2 === 0) {
+                    const fMat = new THREE.MeshStandardMaterial({
+                        color: flowerColors[Math.floor(Math.random() * flowerColors.length)],
+                        roughness: 0.3
+                    });
+                    const flower = new THREE.Mesh(flowerGeo, fMat);
+                    flower.position.set(x, 0.2, z);
+                    flower.scale.set(1, 0.5, 1);
+                    scene.add(flower);
+                }
+            }
+        }
+
+        /**
+         * 浮動 Hover 落子提示標誌 (落子前高亮)
+         */
+        const hoverIndicatorGeo = new THREE.RingGeometry(0.35, 0.55, 32);
+        const hoverIndicatorMat = new THREE.MeshBasicMaterial({
+            color: 0x76ff03,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.75
+        });
+        const hoverIndicator = new THREE.Mesh(hoverIndicatorGeo, hoverIndicatorMat);
+        hoverIndicator.rotation.x = Math.PI / 2;
+        hoverIndicator.position.y = 0.12;
+        hoverIndicator.visible = false;
+        scene.add(hoverIndicator);
+
+        /**
+         * 創建 3D 棋子 (皮克敏鮮紅/鮮藍光澤果實/珍珠風格)
+         */
+        function createStoneMesh(player) {
+            const stoneGroup = new THREE.Group();
+
+            // 棋子主體 (光滑橢球體)
+            const sphereGeo = new THREE.SphereGeometry(0.68, 32, 24);
+            sphereGeo.scale(1, 0.55, 1); // 棋子扁平化
+
+            let mainColor = (player === 1) ? 0xd32f2f : 0x1976d2; // 黑/紅果實 vs 白/藍果實
+
+            const stoneMat = new THREE.MeshStandardMaterial({
+                color: mainColor,
+                roughness: 0.15,
+                metalness: 0.1,
+                clearcoat: 0.8, // 高光塗層感
+                clearcoatRoughness: 0.1
+            });
+
+            const mesh = new THREE.Mesh(sphereGeo, stoneMat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.position.y = 0.38;
+            stoneGroup.add(mesh);
+
+            // 皮克敏嫩芽/小葉子頭飾 (頂部嫩綠小葉)
+            const stemGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.3, 8);
+            const stemMat = new THREE.MeshStandardMaterial({ color: 0x558b2f });
+            const stem = new THREE.Mesh(stemGeo, stemMat);
+            stem.position.set(0, 0.65, 0);
+            stem.rotation.z = -0.2;
+            stoneGroup.add(stem);
+
+            const leafGeo = new THREE.SphereGeometry(0.18, 8, 8);
+            leafGeo.scale(1.8, 0.2, 0.8);
+            const leafMat = new THREE.MeshStandardMaterial({ color: 0x7cb342, roughness: 0.4 });
+            const leaf = new THREE.Mesh(leafGeo, leafMat);
+            leaf.position.set(0.18, 0.78, 0);
+            leaf.rotation.z = 0.2;
+            stoneGroup.add(leaf);
+
+            return stoneGroup;
+        }
+
+        createEnvironment();
+
+        /**
+         * 互動控制：Raycasting (滑鼠與觸控點擊 3D 棋盤)
+         */
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        function getIntersection(event) {
+            let clientX, clientY;
+            if (event.touches && event.touches.length > 0) {
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(boardGridMeshes);
+
+            if (intersects.length > 0) {
+                return intersects[0].object.userData; // {row, col}
+            }
+            return null;
+        }
+
+        // 滑鼠移動提示
+        window.addEventListener('pointermove', (e) => {
+            if (isGameOver || isAiProcessing) {
+                hoverIndicator.visible = false;
+                return;
+            }
+            const hitData = getIntersection(e);
+            if (hitData && boardState[hitData.row][hitData.col] === 0) {
+                const halfWidth = BOARD_WIDTH / 2;
+                hoverIndicator.position.x = -halfWidth + hitData.col * CELL_SIZE;
+                hoverIndicator.position.z = -halfWidth + hitData.row * CELL_SIZE;
+                hoverIndicator.visible = true;
+            } else {
+                hoverIndicator.visible = false;
+            }
+        });
+
+        // 點擊落子觸發
+        let pointerDownPos = { x: 0, y: 0 };
+        window.addEventListener('pointerdown', (e) => {
+            pointerDownPos = { x: e.clientX, y: e.clientY };
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            // 防止拖曳視角時誤觸落子
+            const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+            if (dist > 8) return;
+
+            if (isGameOver || isAiProcessing) return;
+            if (gameMode !== 'pvp' && currentPlayer !== 1) return; // 人機模式時限制非玩家回合
+
+            const hitData = getIntersection(e);
+            if (hitData) {
+                handleMove(hitData.row, hitData.col);
+            }
+        });
+
+        /**
+         * 落子處理 logic
+         */
+        function handleMove(row, col) {
+            if (boardState[row][col] !== 0 || isGameOver) return;
+
+            // 1. 更新資料
+            boardState[row][col] = currentPlayer;
+
+            // 2. 放置 3D 棋子動畫
+            const stoneMesh = createStoneMesh(currentPlayer);
+            const halfWidth = BOARD_WIDTH / 2;
+            const targetX = -halfWidth + col * CELL_SIZE;
+            const targetZ = -halfWidth + row * CELL_SIZE;
+
+            stoneMesh.position.set(targetX, 3, targetZ); // 從上方掉落
+            stonesGroup.add(stoneMesh);
+
+            // 掉落彈跳動畫
+            let startY = 3;
+            let currentY = startY;
+            let speed = 0;
+            const gravity = 0.02;
+
+            function animateDrop() {
+                speed += gravity;
+                currentY -= speed;
+                if (currentY <= 0) {
+                    currentY = 0;
+                    stoneMesh.position.y = 0;
+                } else {
+                    stoneMesh.position.y = currentY;
+                    requestAnimationFrame(animateDrop);
+                }
+            }
+            animateDrop();
+
+            // 音效
+            playSound(currentPlayer === 1 ? 'place1' : 'place2');
+
+            // 紀錄歷史
+            moveHistory.push({ row, col, player: currentPlayer, mesh: stoneMesh });
+            hoverIndicator.visible = false;
+
+            // 3. 檢查勝負
+            if (checkWin(row, col, currentPlayer)) {
+                endGame(currentPlayer);
+                return;
+            }
+
+            // 檢查平局
+            if (moveHistory.length === BOARD_SIZE * BOARD_SIZE) {
+                endGame(0);
+                return;
+            }
+
+            // 4. 切換回合
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            updateUI();
+
+            // 5. 若為 AI 回合則觸發 AI
+            if (!isGameOver && gameMode !== 'pvp' && currentPlayer === 2) {
+                isAiProcessing = true;
+                setTimeout(() => {
+                    makeAiMove();
+                    isAiProcessing = false;
+                }, 400);
+            }
+        }
+
+        /**
+         * 悔棋功能
+         */
+        function undoMove() {
+            if (moveHistory.length === 0 || isGameOver || isAiProcessing) return;
+
+            // 如果是 AI 模式，需退回兩步 (玩家 + AI)
+            const stepsToUndo = (gameMode !== 'pvp' && moveHistory.length >= 2) ? 2 : 1;
+
+            for (let i = 0; i < stepsToUndo; i++) {
+                if (moveHistory.length === 0) break;
+                const lastMove = moveHistory.pop();
+                boardState[lastMove.row][lastMove.col] = 0;
+                stonesGroup.remove(lastMove.mesh);
+            }
+
+            if (gameMode === 'pvp') {
+                currentPlayer = currentPlayer === 1 ? 2 : 1;
+            } else {
+                currentPlayer = 1;
+            }
+
+            playSound('click');
+            updateUI();
+        }
+
+        /**
+         * 五子棋勝負演算法 (檢查 5 連珠)
+         */
+        function checkWin(r, c, p) {
+            const directions = [
+                [[0, 1], [0, -1]],   // 水平
+                [[1, 0], [-1, 0]],   // 垂直
+                [[1, 1], [-1, -1]],  // 斜對角 \
+                [[1, -1], [-1, 1]]   // 反斜對角 /
+            ];
+
+            for (let d = 0; d < directions.length; d++) {
+                let count = 1;
+                for (let i = 0; i < 2; i++) {
+                    const [dr, dc] = directions[d][i];
+                    let nr = r + dr;
+                    let nc = c + dc;
+                    while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === p) {
+                        count++;
+                        nr += dr;
+                        nc += dc;
+                    }
+                }
+                if (count >= 5) return true;
+            }
+            return false;
+        }
+
+        /**
+         * 高階 AI 棋型評估演算法 (Minimax / Dynamic Heuristics)
+         */
+        function makeAiMove() {
+            let bestMove = null;
+
+            if (gameMode === 'ai-easy') {
+                bestMove = getEasyAiMove();
+            } else {
+                bestMove = getHardAiMove();
+            }
+
+            if (bestMove) {
+                handleMove(bestMove.r, bestMove.c);
+            }
+        }
+
+        // 簡單 AI: 隨機 + 基礎擋五
+        function getEasyAiMove() {
+            // 如果開局第一步，下在中心附近
+            if (moveHistory.length <= 1) {
+                const center = 7;
+                if (boardState[center][center] === 0) return { r: center, c: center };
+            }
+
+            let candidates = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (boardState[r][c] === 0 && hasNeighbor(r, c)) {
+                        // 能連五直接下
+                        if (checkWin(r, c, 2)) return { r, c };
+                        // 必須擋玩家連五
+                        if (checkWin(r, c, 1)) return { r, c };
+                        candidates.push({ r, c });
+                    }
+                }
+            }
+            return candidates[Math.floor(Math.random() * candidates.length)] || { r: 7, c: 7 };
+        }
+
+        // 困難 AI: 棋型計分演算法
+        function getHardAiMove() {
+            let maxScore = -Infinity;
+            let bestMoves = [];
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (boardState[r][c] === 0 && hasNeighbor(r, c)) {
+                        // 1. AI 能直接贏
+                        if (checkWin(r, c, 2)) return { r, c };
+                        // 2. 玩家下一步會贏，必須防守
+                        if (checkWin(r, c, 1)) return { r, c };
+
+                        // 3. 計算該點綜合得分 (進攻分 + 防守分)
+                        const aiScore = evaluatePoint(r, c, 2);
+                        const playerScore = evaluatePoint(r, c, 1);
+                        const totalScore = aiScore * 1.2 + playerScore; // 略偏向攻擊
+
+                        if (totalScore > maxScore) {
+                            maxScore = totalScore;
+                            bestMoves = [{ r, c }];
+                        } else if (totalScore === maxScore) {
+                            bestMoves.push({ r, c });
+                        }
+                    }
+                }
+            }
+
+            if (bestMoves.length === 0) return { r: 7, c: 7 };
+            return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+        }
+
+        function hasNeighbor(r, c) {
+            for (let dr = -2; dr <= 2; dr++) {
+                for (let dc = -2; dc <= 2; dc++) {
+                    const nr = r + dr, nc = c + dc;
+                    if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+                        if (boardState[nr][nc] !== 0) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // 評估單點在 4 個方向的棋型價值
+        function evaluatePoint(r, c, player) {
+            boardState[r][c] = player; // 假想落子
+            const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+            let totalVal = 0;
+
+            for (let [dr, dc] of directions) {
+                let count = 1;
+                let openEnds = 0;
+
+                // 正向檢查
+                let nr = r + dr, nc = c + dc;
+                while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === player) {
+                    count++;
+                    nr += dr; nc += dc;
+                }
+                if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === 0) {
+                    openEnds++;
+                }
+
+                // 反向檢查
+                nr = r - dr; nc = c - dc;
+                while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === player) {
+                    count++;
+                    nr -= dr; nc -= dc;
+                }
+                if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === 0) {
+                    openEnds++;
+                }
+
+                // 根據連子數與開放端給分
+                if (count >= 5) totalVal += 100000;
+                else if (count === 4 && openEnds === 2) totalVal += 10000;  // 活四
+                else if (count === 4 && openEnds === 1) totalVal += 2500;   // 沖四
+                else if (count === 3 && openEnds === 2) totalVal += 3000;   // 活三
+                else if (count === 3 && openEnds === 1) totalVal += 500;    // 眠三
+                else if (count === 2 && openEnds === 2) totalVal += 200;    // 活二
+            }
+
+            boardState[r][c] = 0; // 復原
+            return totalVal;
+        }
+
+        /**
+         * 結束遊戲與 Modal 顯示
+         */
+        function endGame(winner) {
+            isGameOver = true;
+            playSound('win');
+
+            const modal = document.getElementById('win-modal');
+            const title = document.getElementById('win-title');
+            const subtitle = document.getElementById('win-subtitle');
+            const flower = document.getElementById('modal-flower');
+
+            if (winner === 1) {
+                p1Wins++;
+                title.innerText = "🎉 玩家 (紅花皮克敏) 獲勝！";
+                title.className = "text-2xl md:text-3xl font-black text-red-600 mb-2";
+                subtitle.innerText = "精彩的連珠戰術，成功拯救了皮克敏花園！";
+                flower.innerText = "🌸";
+            } else if (winner === 2) {
+                p2Wins++;
+                const isAi = gameMode !== 'pvp';
+                title.innerText = isAi ? "🤖 AI (藍花皮克敏) 獲勝！" : "🎉 玩家2 (藍花皮克敏) 獲勝！";
+                title.className = "text-2xl md:text-3xl font-black text-blue-600 mb-2";
+                subtitle.innerText = isAi ? "再接再勵！AI 展現了驚人的強大棋藝！" : "藍色皮克敏獲得了勝利！";
+                flower.innerText = "🌊";
+            } else {
+                title.innerText = "🤝 雙方平手！";
+                title.className = "text-2xl md:text-3xl font-black text-yellow-600 mb-2";
+                subtitle.innerText = "這是一場勢均力敵的精彩對決！";
+                flower.innerText = "🌿";
+            }
+
+            updateUI();
+            modal.classList.remove('hidden');
+        }
+
+        /**
+         * 介面更新 UI
+         */
+        function updateUI() {
+            document.getElementById('p1-score').innerText = `勝利: ${p1Wins}`;
+            document.getElementById('p2-score').innerText = `勝利: ${p2Wins}`;
+
+            const p1Card = document.getElementById('player1-card');
+            const p2Card = document.getElementById('player2-card');
+            const turnText = document.getElementById('turn-text');
+            const turnIcon = document.getElementById('turn-icon');
+
+            if (currentPlayer === 1) {
+                p1Card.className = "flex items-center space-x-2 px-3 py-1 rounded-2xl transition-all duration-300 bg-red-100 border-2 border-red-400 scale-105 shadow";
+                p2Card.className = "flex items-center space-x-2 px-3 py-1 rounded-2xl transition-all duration-300 opacity-60";
+                turnText.innerText = "輪到玩家 (紅果實) 落子";
+                turnIcon.innerText = "🍎";
+            } else {
+                p2Card.className = "flex items-center space-x-2 px-3 py-1 rounded-2xl transition-all duration-300 bg-blue-100 border-2 border-blue-400 scale-105 shadow";
+                p1Card.className = "flex items-center space-x-2 px-3 py-1 rounded-2xl transition-all duration-300 opacity-60";
+                const isAi = gameMode !== 'pvp';
+                turnText.innerText = isAi ? "AI (藍果實) 正在思考中..." : "輪到玩家2 (藍果實) 落子";
+                turnIcon.innerText = "🫐";
+            }
+        }
+
+        /**
+         * 重設遊戲開局
+         */
+        function resetGame() {
+            boardState = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(0));
+            moveHistory = [];
+            currentPlayer = 1;
+            isGameOver = false;
+            isAiProcessing = false;
+
+            // 清除 3D 棋子
+            while (stonesGroup.children.length > 0) {
+                stonesGroup.remove(stonesGroup.children[0]);
+            }
+
+            document.getElementById('win-modal').classList.add('hidden');
+            updateUI();
+            playSound('click');
+        }
+
+        /**
+         * 按鈕事件綁定
+         */
+        document.getElementById('btn-reset').addEventListener('click', resetGame);
+        document.getElementById('modal-btn-restart').addEventListener('click', resetGame);
+        document.getElementById('btn-undo').addEventListener('click', undoMove);
+
+        // 切換模式按鈕 (AI困難 -> AI簡單 -> 雙人對決)
+        const btnMode = document.getElementById('btn-mode');
+        const modeText = document.getElementById('mode-text');
+        const p2Name = document.getElementById('p2-name');
+
+        btnMode.addEventListener('click', () => {
+            if (gameMode === 'ai-hard') {
+                gameMode = 'ai-easy';
+                modeText.innerText = "模式: AI 簡單";
+                p2Name.innerText = "AI (簡單)";
+            } else if (gameMode === 'ai-easy') {
+                gameMode = 'pvp';
+                modeText.innerText = "模式: 雙人對決";
+                p2Name.innerText = "玩家 2";
+            } else {
+                gameMode = 'ai-hard';
+                modeText.innerText = "模式: AI 困難";
+                p2Name.innerText = "AI (困難)";
+            }
+            resetGame();
+        });
+
+        // 鏡頭位置重設
+        document.getElementById('btn-camera').addEventListener('click', () => {
+            setInitialCamera();
+            playSound('click');
+        });
+
+        // 開關音效
+        document.getElementById('btn-sound').addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            icon.className = soundEnabled ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark";
+            if (soundEnabled) playSound('click');
+        });
+
+        /**
+         * 下載功能與 App 安裝
+         */
+        const dlModal = document.getElementById('download-modal');
+        const pwaModal = document.getElementById('pwa-info-modal');
+
+        document.getElementById('btn-download-menu').addEventListener('click', () => {
+            dlModal.classList.remove('hidden');
+            playSound('click');
+        });
+
+        document.getElementById('modal-download-close').addEventListener('click', () => {
+            dlModal.classList.add('hidden');
+            playSound('click');
+        });
+
+        document.getElementById('modal-pwa-close').addEventListener('click', () => {
+            pwaModal.classList.add('hidden');
+            playSound('click');
+        });
+
+        document.getElementById('btn-dl-app-info').addEventListener('click', () => {
+            dlModal.classList.add('hidden');
+            pwaModal.classList.remove('hidden');
+            playSound('click');
+        });
+
+        // 1. 下載獨立 HTML 檔案
+        document.getElementById('btn-dl-html').addEventListener('click', () => {
+            const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'PikminGomoku3D.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            playSound('click');
+        });
+
+        // 2. 一鍵打包 ZIP 檔案
+        document.getElementById('btn-dl-zip').addEventListener('click', () => {
+            if (typeof JSZip === 'undefined') {
+                alert("ZIP 套件載入中，請稍後再試！");
+                return;
+            }
+            const zip = new JSZip();
+            const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            zip.file("index.html", htmlContent);
+            zip.file("README.txt", "皮克敏 3D 五子棋離線版\n點擊 index.html 即可開始遊玩！");
+            
+            zip.generateAsync({ type: "blob" }).then(function(content) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(content);
+                a.download = 'PikminGomoku3D.zip';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            });
+            playSound('click');
+        });
+
+        // Android PWA 原生提示捕捉
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const triggerBtn = document.getElementById('btn-trigger-pwa');
+            if (triggerBtn) {
+                triggerBtn.classList.remove('hidden');
+                triggerBtn.addEventListener('click', async () => {
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        deferredPrompt = null;
+                        pwaModal.classList.add('hidden');
+                    }
+                });
+            }
+        });
+
+        /**
+         * 3D 渲染主迴圈與動態 Resize 調整
+         */
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.onload = () => {
+            initAudio();
+            animate();
+            updateUI();
+        };
+    </script>
+</body>
+</html>
